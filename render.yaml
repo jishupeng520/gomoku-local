@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: gomoku-party
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0

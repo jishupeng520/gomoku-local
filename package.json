@@ -1,0 +1,15 @@
+{
+  "name": "gomoku-lan-party",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A shareable LAN Gomoku game with a cartoon interface.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "package": "node scripts/make-package.mjs",
+    "check": "node --check server.js && node --check public/app.js && node --check scripts/make-package.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
