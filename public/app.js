@@ -3,9 +3,9 @@
  */
 const gameState = {
   board: Array.from({ length: 15 }, () => Array(15).fill(null)),
-  turn: 'black', winner: null, lastMove: null, localColor: 'spectator',
+  turn: 'black', starterColor: 'black', round: 0, winner: null, lastMove: null, localColor: 'spectator',
   clientId: '', nickname: localStorage.getItem('gomokuNickname') || '小太阳',
-  roomId: '', socket: null, zoom: 1, baseBoardSize: 0, soundEnabled: true, pendingInvite: null,
+  roomId: '', socket: null, soundEnabled: true, pendingInvite: null, resultRound: 0,
 };
 const boardElement = document.getElementById('board');
 const statusElement = document.getElementById('gameStatus');
@@ -45,7 +45,15 @@ function handleMessage(message) {
   if (!message || typeof message !== 'object') return;
   if (message.type === 'welcome') { gameState.clientId = message.clientId || ''; gameState.localColor = message.color || 'spectator'; if (message.roomId) setRoom(message.roomId); updateTurnCards(); return; }
   if (message.type === 'roomJoined') { gameState.roomId = message.roomId || gameState.roomId; gameState.localColor = message.color || gameState.localColor; setRoom(gameState.roomId); updateTurnCards(); return; }
-  if (message.type === 'state') { gameState.board = message.board || gameState.board; gameState.turn = message.turn || 'black'; gameState.winner = message.winner || null; gameState.lastMove = message.lastMove || null; if (message.roomId) setRoom(message.roomId); if (message.lanUrl) setAddress(message.lanUrl); renderBoard(); updatePlayers(message); return; }
+  if (message.type === 'state') {
+    const previousRound = gameState.round; const previousWinner = gameState.winner;
+    gameState.board = message.board || gameState.board; gameState.turn = message.turn || 'black'; gameState.starterColor = message.starterColor || gameState.starterColor; gameState.round = Number(message.round) || gameState.round; gameState.winner = message.winner || null; gameState.lastMove = message.lastMove || null;
+    if (message.roomId) setRoom(message.roomId); if (message.lanUrl) setAddress(message.lanUrl);
+    renderBoard(); updatePlayers(message);
+    if (gameState.round && gameState.round !== previousRound) showRoundStart();
+    if (gameState.winner && !previousWinner && gameState.resultRound !== gameState.round) { gameState.resultRound = gameState.round; showCelebration(gameState.winner); }
+    return;
+  }
   if (message.type === 'lobby') { updateLobby(message.onlineUsers || message.players || []); return; }
   if (message.type === 'invite') { showInvite(message); return; }
   if (message.type === 'inviteSent') { showToast(`已邀请 ${message.to?.nickname || '玩家'}，等待回应`); return; }
@@ -55,17 +63,30 @@ function handleMessage(message) {
   if (message.type === 'error') showToast(message.message || '房间操作失败');
 }
 
-/** 更新当前玩家卡片、轮次状态以及胜负提示。 */
+/** 更新玩家卡片、先手标签、当前回合提示和棋盘小手。 */
 function updateTurnCards() {
-  const playing = !gameState.winner && gameState.localColor !== 'spectator';
+  const playing = !gameState.winner && gameState.localColor !== 'spectator'; const ownTurn = playing && gameState.turn === gameState.localColor;
   const blackActive = playing && gameState.turn === 'black'; const whiteActive = playing && gameState.turn === 'white';
   document.getElementById('blackPlayerCard').classList.toggle('active', blackActive); document.getElementById('whitePlayerCard').classList.toggle('active', whiteActive);
-  document.getElementById('blackTurnBadge').textContent = gameState.localColor === 'black' && blackActive ? '你的回合' : '等待中';
-  document.getElementById('whiteTurnBadge').textContent = gameState.localColor === 'white' && whiteActive ? '你的回合' : '等待中';
-  if (gameState.winner === 'draw') statusElement.textContent = '和棋啦，点击 ↻ 再来一局';
-  else if (gameState.winner) statusElement.textContent = gameState.winner === gameState.localColor ? '你赢啦！点击 ↻ 再来一局' : '对手赢啦，点击 ↻ 再来一局';
-  else statusElement.textContent = gameState.localColor === gameState.turn ? '轮到你落子啦' : gameState.localColor === 'spectator' ? '观战中 · 等待玩家落子' : '等待对手落子…';
-  document.getElementById('boardHint').textContent = gameState.localColor === gameState.turn ? '点击棋盘落子 · 祝你好运' : '对手思考中 · 看看下一步放哪里';
+  document.getElementById('blackTurnBadge').textContent = gameState.localColor === 'black' && blackActive ? '请落子' : '等待中'; document.getElementById('whiteTurnBadge').textContent = gameState.localColor === 'white' && whiteActive ? '请落子' : '等待中';
+  document.querySelector('#blackPlayerCard .player-info span').textContent = `黑棋 · ${gameState.starterColor === 'black' ? '先手' : '后手'}`; document.querySelector('#whitePlayerCard .player-info span').textContent = `白棋 · ${gameState.starterColor === 'white' ? '先手' : '后手'}`;
+  if (gameState.winner === 'draw') statusElement.textContent = '势均力敌 · 再来一局？'; else if (gameState.winner) statusElement.textContent = gameState.winner === gameState.localColor ? '你赢了！' : '对手赢了'; else if (gameState.localColor === 'spectator') statusElement.textContent = '观战中 · 等待玩家落子'; else statusElement.textContent = ownTurn ? '请落子' : '等待对方落子';
+  document.getElementById('boardHint').textContent = ownTurn ? '请落子 · 小手正在提醒你' : '等待对方落子'; document.getElementById('turnHand').classList.toggle('is-visible', ownTurn);
+}
+
+/** 显示新一局的先手提示。 */
+function showRoundStart() { if (gameState.localColor === 'spectator') return; showBanner(gameState.localColor === gameState.turn ? '你先落子' : '对方先落子'); }
+
+/** 显示带艺术字体的短暂回合提示。 */
+function showBanner(message) { const banner = document.getElementById('roundBanner'); banner.textContent = message; banner.classList.add('is-visible'); clearTimeout(showBanner.timer); showBanner.timer = setTimeout(() => banner.classList.remove('is-visible'), 2200); }
+
+/** 根据胜负结果打开彩蛋弹窗并生成烟花粒子。 */
+function showCelebration(result) {
+  const dialog = document.getElementById('resultDialog'); const won = result === gameState.localColor; const draw = result === 'draw';
+  document.getElementById('resultEmoji').textContent = draw ? '🤝' : won ? '🎉' : '🌟'; document.getElementById('resultTitle').textContent = draw ? '势均力敌！' : won ? '你赢了！' : '没关系，再来一局！'; document.getElementById('resultMessage').textContent = draw ? '下一局继续闪耀吧' : won ? '这一步走得太漂亮啦' : '下一局一定可以反击';
+  const fireworks = document.getElementById('fireworks'); fireworks.replaceChildren();
+  if (!draw) for (let index = 0; index < 24; index += 1) { const spark = document.createElement('i'); spark.style.setProperty('--angle', `${index * 15}deg`); spark.style.setProperty('--delay', `${(index % 6) * 45}ms`); fireworks.append(spark); }
+  if (!dialog.open) dialog.showModal();
 }
 
 /** 将在线玩家数组渲染成可邀请的大厅卡片。 */
@@ -109,41 +130,11 @@ function setAddress(address) { document.getElementById('addressLabel').textConte
 async function copyRoomLink() { try { await navigator.clipboard.writeText(document.getElementById('shareUrl').textContent); showToast('房间链接已复制，发给同事吧！'); } catch { showToast(document.getElementById('shareUrl').textContent); } }
 /** 请求服务端重开一局。 */
 function resetGame() { sendMessage({ type: 'restart' }); }
-/**
- * 应用整张棋盘的缩放尺寸；棋盘视口同步变大，始终展示完整棋盘。
- * @param {number} nextZoom 目标缩放比例，范围 75% 至 150%。
- * @param {boolean} keepCenter 是否保持用户当前看到的棋盘位置。
- */
-function setZoom(nextZoom) {
-  const viewport = document.getElementById('boardViewport'); const boardWrap = document.getElementById('boardWrap');
-  if (!viewport || !boardWrap) return;
-  gameState.zoom = Math.min(1.5, Math.max(.75, nextZoom));
-  const baseSize = gameState.baseBoardSize || viewport.clientWidth; const nextSize = Math.max(1, Math.round(baseSize * gameState.zoom));
-  document.querySelector('.game-layout')?.style.setProperty('--board-stage-width', `${nextSize}px`);
-  viewport.style.width = `${nextSize}px`; viewport.style.height = `${nextSize}px`;
-  boardWrap.style.width = `${nextSize}px`; boardWrap.style.height = `${nextSize}px`;
-  document.getElementById('zoomValue').textContent = `${Math.round(gameState.zoom * 100)}%`;
-}
-
-/** 调整棋盘缩放比例，供备用按钮调用。 */
-function adjustZoom(delta) { setZoom(gameState.zoom + delta); }
-
-/** 注册鼠标滚轮、触控板捏合和 Safari 手势缩放。 */
-function bindZoomGestures() {
-  const viewport = document.getElementById('boardViewport'); let gestureStartZoom = gameState.zoom;
-  viewport.addEventListener('wheel', (event) => { event.preventDefault(); setZoom(gameState.zoom * Math.exp(-event.deltaY * 0.002)); }, { passive: false });
-  viewport.addEventListener('gesturestart', (event) => { event.preventDefault(); gestureStartZoom = gameState.zoom; }, { passive: false });
-  viewport.addEventListener('gesturechange', (event) => { event.preventDefault(); setZoom(gestureStartZoom * event.scale); }, { passive: false });
-  viewport.addEventListener('gestureend', (event) => event.preventDefault(), { passive: false });
-  gameState.baseBoardSize = viewport.getBoundingClientRect().width;
-  window.addEventListener('resize', () => { viewport.style.width = ''; viewport.style.height = ''; gameState.baseBoardSize = viewport.getBoundingClientRect().width; setZoom(gameState.zoom); });
-  setZoom(1);
-}
 /** 显示短暂的页面提示。 */
 function showToast(message) { toastElement.textContent = message; toastElement.classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toastElement.classList.remove('show'), 2200); }
 
-buildBoard(); setRoom(new URLSearchParams(location.search).get('room') || '------'); bindZoomGestures(); connectSocket();
-document.getElementById('copyButton').onclick = copyRoomLink; document.getElementById('resetButton').onclick = resetGame; document.getElementById('zoomIn').onclick = () => adjustZoom(.05); document.getElementById('zoomOut').onclick = () => adjustZoom(-.05);
+buildBoard(); setRoom(new URLSearchParams(location.search).get('room') || '------'); connectSocket();
+document.getElementById('copyButton').onclick = copyRoomLink; document.getElementById('resetButton').onclick = resetGame; document.getElementById('resultRestart').onclick = () => { document.getElementById('resultDialog').close(); resetGame(); };
 document.getElementById('soundButton').onclick = () => { gameState.soundEnabled = !gameState.soundEnabled; document.getElementById('soundButton').textContent = gameState.soundEnabled ? '♫' : '♩'; showToast(gameState.soundEnabled ? '音效已开启' : '音效已关闭'); };
 document.getElementById('nicknameForm').onsubmit = (event) => { event.preventDefault(); const input = document.getElementById('nicknameInput'); gameState.nickname = input.value.trim().slice(0, 12) || '玩家'; localStorage.setItem('gomokuNickname', gameState.nickname); sendMessage({ type: 'hello', nickname: gameState.nickname }); showToast('昵称已更新'); };
 document.getElementById('nicknameInput').value = gameState.nickname; document.getElementById('acceptInvite').onclick = () => respondInvite(true); document.getElementById('rejectInvite').onclick = () => respondInvite(false);

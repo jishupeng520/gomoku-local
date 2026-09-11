@@ -7,7 +7,7 @@
     <meta name="description" content="轻松可分享的本地双人五子棋游戏" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -51,17 +51,15 @@
             <div><span class="round-label">ROOM <b id="roomCodeLabel">------</b></span><h2 id="gameStatus">等待对手加入</h2></div>
             <div class="board-actions"><button class="icon-button" id="soundButton" title="切换音效" aria-label="切换音效">♫</button><button class="icon-button" id="resetButton" title="重新开始" aria-label="重新开始">↻</button></div>
           </div>
-          <div class="board-viewport" id="boardViewport" aria-label="可缩放棋盘视口">
+          <div class="board-viewport" id="boardViewport" aria-label="五子棋棋盘">
             <div class="board-wrap" id="boardWrap">
               <div class="board-shadow" aria-hidden="true"></div>
               <div class="board" id="board" role="grid" aria-label="15×15 五子棋棋盘"></div>
               <div class="last-move-dot" id="lastMoveDot" aria-hidden="true"></div>
+              <div class="turn-hand" id="turnHand" aria-hidden="true">👆</div>
             </div>
           </div>
-          <div class="zoom-controls" aria-label="棋盘缩放">
-            <button id="zoomOut" aria-label="缩小棋盘">−</button><span id="zoomValue">100%</span><button id="zoomIn" aria-label="放大棋盘">＋</button>
-          </div>
-          <p class="board-hint" id="boardHint">点击落子 · 滚轮或双指捏合缩放</p>
+          <p class="board-hint" id="boardHint">点击棋盘落子 · 黑棋先行</p>
         </section>
 
         <aside class="side-panel right-panel">
@@ -88,7 +86,9 @@
       <footer class="footer"><span>Made for tiny breaks · 玩得开心</span><span>连接地址：<b id="addressLabel">读取中…</b></span></footer>
     </main>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="round-banner" id="roundBanner" role="status" aria-live="polite"></div>
     <dialog class="invite-dialog" id="inviteDialog"><div class="dialog-icon">✉</div><h3 id="inviteTitle">收到对战邀请</h3><p id="inviteMessage">有玩家邀请你来一局五子棋</p><div class="dialog-actions"><button class="dialog-reject" id="rejectInvite">稍后再说</button><button class="dialog-accept" id="acceptInvite">接受挑战</button></div></dialog>
+    <dialog class="result-dialog" id="resultDialog"><div class="fireworks" id="fireworks" aria-hidden="true"></div><div class="result-emoji" id="resultEmoji">🎉</div><h3 class="art-font" id="resultTitle">你赢了！</h3><p class="art-font" id="resultMessage">太棒啦，继续保持！</p><button class="result-button" id="resultRestart" type="button">再来一局</button></dialog>
     <script src="app.js"></script>
   </body>
 </html>

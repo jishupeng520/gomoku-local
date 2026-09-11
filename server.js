@@ -84,6 +84,12 @@ function broadcastLobby() {
 /**
  * @param {object} room 对局房间对象。
  * @returns {object} 可安全发送给浏览器的房间快照。
+ * @property {string} roomId 房间临时标识。
+ * @property {Array<Array<string|null>>} board 当前棋盘，空位为 null。
+ * @property {'black'|'white'} turn 当前可落子的棋色。
+ * @property {'black'|'white'} starterColor 本局先手棋色，每次重开与上一局交替。
+ * @property {number} round 房间内的对局序号，从 1 开始递增。
+ * @property {'black'|'white'|'draw'|null} winner 胜者棋色、和棋标记或 null。
  */
 function roomState(room) {
   const players = { black: null, white: null };
@@ -91,14 +97,14 @@ function roomState(room) {
     const session = sessions.get(socket);
     players[color] = session ? { id: session.id, nickname: session.nickname } : null;
   }
-  return { roomId: room.id, board: room.board, turn: room.turn, winner: room.winner, lastMove: room.lastMove, players };
+  return { roomId: room.id, board: room.board, turn: room.turn, starterColor: room.starterColor, round: room.round, winner: room.winner, lastMove: room.lastMove, players };
 }
 
 /** @param {object} room @returns {void} 将房间快照广播给双方玩家。 */
 function broadcastRoom(room) { for (const socket of room.players.keys()) send(socket, 'state', roomState(room)); }
 
 /** @param {object} room @returns {void} 重置房间棋盘和回合。 */
-function resetRoom(room) { room.board = createBoard(); room.turn = 'black'; room.winner = null; room.lastMove = null; }
+function resetRoom(room) { room.board = createBoard(); room.starterColor = room.starterColor === 'black' ? 'white' : 'black'; room.turn = room.starterColor; room.round += 1; room.winner = null; room.lastMove = null; }
 
 /**
  * @param {import('ws').WebSocket} socket 当前连接。
@@ -153,7 +159,7 @@ function handleMessage(socket, payload) {
     const from = sessions.get(invite.from); const to = sessions.get(invite.to);
     if (!from || !to) return;
     if (payload.accept !== true) { from.status = 'idle'; to.status = 'idle'; send(invite.from, 'inviteDeclined', { nickname: to.nickname }); broadcastLobby(); return; }
-    const room = { id: createId(), board: createBoard(), turn: 'black', winner: null, lastMove: null, players: new Map([ [invite.from, 'black'], [invite.to, 'white'] ]) };
+    const room = { id: createId(), board: createBoard(), starterColor: 'black', round: 1, turn: 'black', winner: null, lastMove: null, players: new Map([ [invite.from, 'black'], [invite.to, 'white'] ]) };
     rooms.set(room.id, room); from.roomId = room.id; to.roomId = room.id; from.status = 'playing'; to.status = 'playing';
     send(invite.from, 'roomJoined', { roomId: room.id, color: 'black' }); send(invite.to, 'roomJoined', { roomId: room.id, color: 'white' });
     broadcastRoom(room); broadcastLobby();
@@ -161,6 +167,7 @@ function handleMessage(socket, payload) {
   }
   if (payload.type === 'restart') {
     const room = rooms.get(session.roomId); if (!room || !room.players.has(socket)) return;
+    if (!room.winner) return sendError(socket, 'GAME_ACTIVE', '本局尚未结束，先完成当前对局。');
     resetRoom(room); broadcastRoom(room); return;
   }
   if (payload.type !== 'move') return;
