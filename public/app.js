@@ -109,12 +109,39 @@ function setAddress(address) { document.getElementById('addressLabel').textConte
 async function copyRoomLink() { try { await navigator.clipboard.writeText(document.getElementById('shareUrl').textContent); showToast('房间链接已复制，发给同事吧！'); } catch { showToast(document.getElementById('shareUrl').textContent); } }
 /** 请求服务端重开一局。 */
 function resetGame() { sendMessage({ type: 'restart' }); }
-/** 调整棋盘缩放比例，范围 80% 至 125%。 */
-function adjustZoom(delta) { gameState.zoom = Math.min(1.25, Math.max(.8, gameState.zoom + delta)); document.getElementById('boardWrap').style.transform = `scale(${gameState.zoom})`; document.getElementById('zoomValue').textContent = `${Math.round(gameState.zoom * 100)}%`; }
+/**
+ * 应用棋盘缩放并保持当前视口中心，避免放大后遮住下方控制区。
+ * @param {number} nextZoom 目标缩放比例，范围 75% 至 150%。
+ * @param {boolean} keepCenter 是否保持用户当前看到的棋盘位置。
+ */
+function setZoom(nextZoom, keepCenter = true) {
+  const viewport = document.getElementById('boardViewport'); const boardWrap = document.getElementById('boardWrap');
+  if (!viewport || !boardWrap) return;
+  const oldSize = boardWrap.getBoundingClientRect().width || viewport.clientWidth; const ratioX = (viewport.scrollLeft + viewport.clientWidth / 2) / oldSize; const ratioY = (viewport.scrollTop + viewport.clientHeight / 2) / oldSize;
+  gameState.zoom = Math.min(1.5, Math.max(.75, nextZoom));
+  const baseSize = viewport.clientWidth; const nextSize = Math.max(1, Math.round(baseSize * gameState.zoom));
+  boardWrap.style.width = `${nextSize}px`; boardWrap.style.height = `${nextSize}px`;
+  document.getElementById('zoomValue').textContent = `${Math.round(gameState.zoom * 100)}%`;
+  if (keepCenter) { viewport.scrollLeft = Math.max(0, ratioX * nextSize - viewport.clientWidth / 2); viewport.scrollTop = Math.max(0, ratioY * nextSize - viewport.clientHeight / 2); }
+}
+
+/** 调整棋盘缩放比例，供备用按钮调用。 */
+function adjustZoom(delta) { setZoom(gameState.zoom + delta); }
+
+/** 注册鼠标滚轮、触控板捏合和 Safari 手势缩放。 */
+function bindZoomGestures() {
+  const viewport = document.getElementById('boardViewport'); let gestureStartZoom = gameState.zoom;
+  viewport.addEventListener('wheel', (event) => { event.preventDefault(); setZoom(gameState.zoom * Math.exp(-event.deltaY * 0.002)); }, { passive: false });
+  viewport.addEventListener('gesturestart', (event) => { event.preventDefault(); gestureStartZoom = gameState.zoom; }, { passive: false });
+  viewport.addEventListener('gesturechange', (event) => { event.preventDefault(); setZoom(gestureStartZoom * event.scale); }, { passive: false });
+  viewport.addEventListener('gestureend', (event) => event.preventDefault(), { passive: false });
+  window.addEventListener('resize', () => setZoom(gameState.zoom, false));
+  setZoom(1, false);
+}
 /** 显示短暂的页面提示。 */
 function showToast(message) { toastElement.textContent = message; toastElement.classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toastElement.classList.remove('show'), 2200); }
 
-buildBoard(); setRoom(new URLSearchParams(location.search).get('room') || '------'); connectSocket();
+buildBoard(); setRoom(new URLSearchParams(location.search).get('room') || '------'); bindZoomGestures(); connectSocket();
 document.getElementById('copyButton').onclick = copyRoomLink; document.getElementById('resetButton').onclick = resetGame; document.getElementById('zoomIn').onclick = () => adjustZoom(.05); document.getElementById('zoomOut').onclick = () => adjustZoom(-.05);
 document.getElementById('soundButton').onclick = () => { gameState.soundEnabled = !gameState.soundEnabled; document.getElementById('soundButton').textContent = gameState.soundEnabled ? '♫' : '♩'; showToast(gameState.soundEnabled ? '音效已开启' : '音效已关闭'); };
 document.getElementById('nicknameForm').onsubmit = (event) => { event.preventDefault(); const input = document.getElementById('nicknameInput'); gameState.nickname = input.value.trim().slice(0, 12) || '玩家'; localStorage.setItem('gomokuNickname', gameState.nickname); sendMessage({ type: 'hello', nickname: gameState.nickname }); showToast('昵称已更新'); };

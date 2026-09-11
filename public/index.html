@@ -51,15 +51,17 @@
             <div><span class="round-label">ROOM <b id="roomCodeLabel">------</b></span><h2 id="gameStatus">等待对手加入</h2></div>
             <div class="board-actions"><button class="icon-button" id="soundButton" title="切换音效" aria-label="切换音效">♫</button><button class="icon-button" id="resetButton" title="重新开始" aria-label="重新开始">↻</button></div>
           </div>
-          <div class="board-wrap" id="boardWrap">
-            <div class="board-shadow" aria-hidden="true"></div>
-            <div class="board" id="board" role="grid" aria-label="15×15 五子棋棋盘"></div>
-            <div class="last-move-dot" id="lastMoveDot" aria-hidden="true"></div>
+          <div class="board-viewport" id="boardViewport" aria-label="可缩放棋盘视口">
+            <div class="board-wrap" id="boardWrap">
+              <div class="board-shadow" aria-hidden="true"></div>
+              <div class="board" id="board" role="grid" aria-label="15×15 五子棋棋盘"></div>
+              <div class="last-move-dot" id="lastMoveDot" aria-hidden="true"></div>
+            </div>
           </div>
           <div class="zoom-controls" aria-label="棋盘缩放">
             <button id="zoomOut" aria-label="缩小棋盘">−</button><span id="zoomValue">100%</span><button id="zoomIn" aria-label="放大棋盘">＋</button>
           </div>
-          <p class="board-hint" id="boardHint">点击棋盘落子 · 黑棋先行</p>
+          <p class="board-hint" id="boardHint">点击落子 · 滚轮或双指捏合缩放</p>
         </section>
 
         <aside class="side-panel right-panel">
