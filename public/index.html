@@ -29,23 +29,6 @@
       </header>
 
       <section class="game-layout" aria-label="五子棋游戏区域">
-        <aside class="side-panel left-panel">
-          <div class="player-card player-card-black active" id="blackPlayerCard">
-            <div class="player-avatar avatar-sun">☀</div>
-            <div class="player-info"><strong>小太阳</strong><span>黑棋 · 先手</span></div>
-            <span class="turn-badge" id="blackTurnBadge">你的回合</span>
-          </div>
-          <div class="score-card">
-            <span>本局比分</span>
-            <strong><b id="blackScore">0</b><i>:</i><b id="whiteScore">0</b></strong>
-            <small>三局两胜 · 轻松玩</small>
-          </div>
-          <div class="tip-card">
-            <span class="tip-icon" aria-hidden="true">💡</span>
-            <p>连成五颗棋子<br />就能赢下星星啦！</p>
-          </div>
-        </aside>
-
         <section class="board-stage">
           <div class="board-heading">
             <div><span class="round-label">ROOM <b id="roomCodeLabel">------</b></span><h2 id="gameStatus">等待对手加入</h2></div>
@@ -62,20 +45,8 @@
           <p class="board-hint" id="boardHint">点击棋盘落子 · 黑棋先行</p>
         </section>
 
-        <aside class="side-panel right-panel">
-          <div class="player-card player-card-white" id="whitePlayerCard">
-            <div class="player-avatar avatar-moon">☾</div>
-            <div class="player-info"><strong>月亮同事</strong><span>白棋 · 后手</span></div>
-            <span class="turn-badge" id="whiteTurnBadge">等你落子</span>
-          </div>
-          <div class="share-card">
-            <div class="share-title"><span>邀请同事来玩</span><span class="share-sparkle">✦</span></div>
-            <div class="qr-placeholder" id="qrPlaceholder" aria-label="房间二维码占位"><span>⌁</span><small>扫码加入房间</small></div>
-            <p class="share-url" id="shareUrl">正在生成分享地址…</p>
-            <button class="share-button" id="copyButton">复制房间链接 <span>↗</span></button>
-          </div>
-          <div class="room-note"><span>⌁</span> 同一 Wi‑Fi 下打开链接<br />&nbsp;&nbsp;&nbsp;就可以面对面开战</div>
-          <section class="lobby-card" aria-label="在线玩家大厅">
+        <aside class="side-panel right-panel" aria-label="在线玩家大厅">
+          <section class="lobby-card">
             <div class="share-title"><span>在线大厅</span><span class="online-count" id="onlineCount">0 人在线</span></div>
             <form class="nickname-form" id="nicknameForm"><label for="nicknameInput">你的昵称</label><div class="nickname-row"><input id="nicknameInput" maxlength="12" placeholder="输入昵称加入大厅" autocomplete="nickname" /><button type="submit">更新</button></div></form>
             <div class="online-list" id="onlineList"><p class="empty-lobby">正在寻找在线玩家…</p></div>

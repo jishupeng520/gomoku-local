@@ -51,3 +51,12 @@ h1,h2,p { margin:0; } h1 { font:800 29px/1 'Noto Sans SC',sans-serif; letter-spa
 @keyframes firework-burst { 0% { opacity:1; transform:rotate(var(--angle)) translateY(0) scale(1); } 100% { opacity:0; transform:rotate(var(--angle)) translateY(-125px) scale(.25); } }
 @media(max-width:1050px) { .game-layout { grid-template-columns:150px minmax(0,var(--board-size)) 150px; } }
 @media(max-width:780px) { :root { --board-size:min(92vw, calc(100vh - 330px), 580px); } .board-viewport { width:var(--board-size); height:var(--board-size); } .round-banner { top:11%; font-size:24px; } }
+
+/* 简洁双栏布局：棋盘与在线大厅分开占列，邀请按钮保持横向。 */
+.game-layout { grid-template-columns:minmax(0,var(--board-size)) 320px; gap:36px; align-items:start; }
+.right-panel { width:320px; min-width:0; }
+.lobby-card { width:100%; }
+.lobby-card .online-user { grid-template-columns:8px minmax(0,1fr) auto; width:100%; }
+.lobby-card .invite-user { min-width:58px; white-space:nowrap; writing-mode:horizontal-tb; }
+@media(max-width:1050px) { .game-layout { grid-template-columns:minmax(0,var(--board-size)) 290px; gap:22px; } .right-panel { width:290px; } }
+@media(max-width:780px) { .game-layout { display:flex; flex-direction:column; align-items:center; gap:18px; } .right-panel { width:min(100%,var(--board-size)); } }

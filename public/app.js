@@ -5,7 +5,7 @@ const gameState = {
   board: Array.from({ length: 15 }, () => Array(15).fill(null)),
   turn: 'black', starterColor: 'black', round: 0, winner: null, lastMove: null, localColor: 'spectator',
   clientId: '', nickname: localStorage.getItem('gomokuNickname') || '小太阳',
-  roomId: '', socket: null, soundEnabled: true, pendingInvite: null, resultRound: 0,
+  roomId: '', socket: null, soundEnabled: true, pendingInvite: null, resultRound: 0, firstMovePending: true,
 };
 const boardElement = document.getElementById('board');
 const statusElement = document.getElementById('gameStatus');
@@ -37,7 +37,7 @@ function renderBoard() {
 /** 向服务端发送合法落子请求，服务端负责最终校验。 */
 function placeStone(row, col) {
   if (gameState.winner || gameState.turn !== gameState.localColor || gameState.board[row][col]) return;
-  sendMessage({ type: 'move', row, col });
+  gameState.firstMovePending = false; updateTurnCards(); sendMessage({ type: 'move', row, col });
 }
 
 /** 处理 welcome、state、lobby、邀请和错误消息。 */
@@ -47,7 +47,7 @@ function handleMessage(message) {
   if (message.type === 'roomJoined') { gameState.roomId = message.roomId || gameState.roomId; gameState.localColor = message.color || gameState.localColor; setRoom(gameState.roomId); updateTurnCards(); return; }
   if (message.type === 'state') {
     const previousRound = gameState.round; const previousWinner = gameState.winner;
-    gameState.board = message.board || gameState.board; gameState.turn = message.turn || 'black'; gameState.starterColor = message.starterColor || gameState.starterColor; gameState.round = Number(message.round) || gameState.round; gameState.winner = message.winner || null; gameState.lastMove = message.lastMove || null;
+    gameState.board = message.board || gameState.board; gameState.turn = message.turn || 'black'; gameState.starterColor = message.starterColor || gameState.starterColor; gameState.round = Number(message.round) || gameState.round; if (gameState.round !== previousRound) gameState.firstMovePending = true; gameState.winner = message.winner || null; gameState.lastMove = message.lastMove || null;
     if (message.roomId) setRoom(message.roomId); if (message.lanUrl) setAddress(message.lanUrl);
     renderBoard(); updatePlayers(message);
     if (gameState.round && gameState.round !== previousRound) showRoundStart();
@@ -67,11 +67,14 @@ function handleMessage(message) {
 function updateTurnCards() {
   const playing = !gameState.winner && gameState.localColor !== 'spectator'; const ownTurn = playing && gameState.turn === gameState.localColor;
   const blackActive = playing && gameState.turn === 'black'; const whiteActive = playing && gameState.turn === 'white';
-  document.getElementById('blackPlayerCard').classList.toggle('active', blackActive); document.getElementById('whitePlayerCard').classList.toggle('active', whiteActive);
-  document.getElementById('blackTurnBadge').textContent = gameState.localColor === 'black' && blackActive ? '请落子' : '等待中'; document.getElementById('whiteTurnBadge').textContent = gameState.localColor === 'white' && whiteActive ? '请落子' : '等待中';
-  document.querySelector('#blackPlayerCard .player-info span').textContent = `黑棋 · ${gameState.starterColor === 'black' ? '先手' : '后手'}`; document.querySelector('#whitePlayerCard .player-info span').textContent = `白棋 · ${gameState.starterColor === 'white' ? '先手' : '后手'}`;
+  const blackCard = document.getElementById('blackPlayerCard'); const whiteCard = document.getElementById('whitePlayerCard');
+  if (blackCard) blackCard.classList.toggle('active', blackActive); if (whiteCard) whiteCard.classList.toggle('active', whiteActive);
+  const blackBadge = document.getElementById('blackTurnBadge'); const whiteBadge = document.getElementById('whiteTurnBadge');
+  if (blackBadge) blackBadge.textContent = gameState.localColor === 'black' && blackActive ? '请落子' : '等待中'; if (whiteBadge) whiteBadge.textContent = gameState.localColor === 'white' && whiteActive ? '请落子' : '等待中';
+  const blackMeta = document.querySelector('#blackPlayerCard .player-info span'); const whiteMeta = document.querySelector('#whitePlayerCard .player-info span');
+  if (blackMeta) blackMeta.textContent = `黑棋 · ${gameState.starterColor === 'black' ? '先手' : '后手'}`; if (whiteMeta) whiteMeta.textContent = `白棋 · ${gameState.starterColor === 'white' ? '先手' : '后手'}`;
   if (gameState.winner === 'draw') statusElement.textContent = '势均力敌 · 再来一局？'; else if (gameState.winner) statusElement.textContent = gameState.winner === gameState.localColor ? '你赢了！' : '对手赢了'; else if (gameState.localColor === 'spectator') statusElement.textContent = '观战中 · 等待玩家落子'; else statusElement.textContent = ownTurn ? '请落子' : '等待对方落子';
-  document.getElementById('boardHint').textContent = ownTurn ? '请落子 · 小手正在提醒你' : '等待对方落子'; document.getElementById('turnHand').classList.toggle('is-visible', ownTurn);
+  document.getElementById('boardHint').textContent = ownTurn ? '请落子' : '等待对方落子'; document.getElementById('turnHand').classList.toggle('is-visible', ownTurn && gameState.firstMovePending);
 }
 
 /** 显示新一局的先手提示。 */
@@ -99,7 +102,7 @@ function updateLobby(users) {
 
 /** 从 state.players 补充大厅与两侧玩家昵称。 */
 function updatePlayers(message) {
-  const players = message.players || {}; const black = typeof players.black === 'object' ? players.black?.nickname : players.black; const white = typeof players.white === 'object' ? players.white?.nickname : players.white; document.querySelector('#blackPlayerCard strong').textContent = black || '小太阳'; document.querySelector('#whitePlayerCard strong').textContent = white || '月亮同事';
+  const players = message.players || {}; const black = typeof players.black === 'object' ? players.black?.nickname : players.black; const white = typeof players.white === 'object' ? players.white?.nickname : players.white; const blackName = document.querySelector('#blackPlayerCard strong'); const whiteName = document.querySelector('#whitePlayerCard strong'); if (blackName) blackName.textContent = black || '小太阳'; if (whiteName) whiteName.textContent = white || '月亮同事';
   const users = message.onlineUsers || Object.entries(players).filter(([, value]) => value).map(([id, value]) => ({ id, nickname: typeof value === 'object' ? value.nickname : value, status: '对战中' })); updateLobby(users);
 }
 
@@ -123,7 +126,7 @@ function sendMessage(message) { if (gameState.socket?.readyState === WebSocket.O
 /** 更新连接状态徽标。 */
 function setConnection(state, text) { const pill = document.getElementById('connectionPill'); pill.dataset.state = state; document.getElementById('connectionText').textContent = text; }
 /** 设置房间编号与可复制分享链接。 */
-function setRoom(room) { gameState.roomId = room; document.getElementById('roomCodeLabel').textContent = room || '------'; const url = `${window.location.origin}${window.location.pathname}`; document.getElementById('shareUrl').textContent = url; setAddress(url); }
+function setRoom(room) { gameState.roomId = room; document.getElementById('roomCodeLabel').textContent = room || '------'; const url = `${window.location.origin}${window.location.pathname}`; const shareUrl = document.getElementById('shareUrl'); if (shareUrl) shareUrl.textContent = url; setAddress(url); }
 /** 更新页面底部显示的访问地址。 */
 function setAddress(address) { document.getElementById('addressLabel').textContent = String(address).replace(/^https?:\/\//, ''); }
 /** 复制房间链接。 */
@@ -134,7 +137,7 @@ function resetGame() { sendMessage({ type: 'restart' }); }
 function showToast(message) { toastElement.textContent = message; toastElement.classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toastElement.classList.remove('show'), 2200); }
 
 buildBoard(); setRoom(new URLSearchParams(location.search).get('room') || '------'); connectSocket();
-document.getElementById('copyButton').onclick = copyRoomLink; document.getElementById('resetButton').onclick = resetGame; document.getElementById('resultRestart').onclick = () => { document.getElementById('resultDialog').close(); resetGame(); };
+document.getElementById('resetButton').onclick = resetGame; document.getElementById('resultRestart').onclick = () => { document.getElementById('resultDialog').close(); resetGame(); };
 document.getElementById('soundButton').onclick = () => { gameState.soundEnabled = !gameState.soundEnabled; document.getElementById('soundButton').textContent = gameState.soundEnabled ? '♫' : '♩'; showToast(gameState.soundEnabled ? '音效已开启' : '音效已关闭'); };
 document.getElementById('nicknameForm').onsubmit = (event) => { event.preventDefault(); const input = document.getElementById('nicknameInput'); gameState.nickname = input.value.trim().slice(0, 12) || '玩家'; localStorage.setItem('gomokuNickname', gameState.nickname); sendMessage({ type: 'hello', nickname: gameState.nickname }); showToast('昵称已更新'); };
 document.getElementById('nicknameInput').value = gameState.nickname; document.getElementById('acceptInvite').onclick = () => respondInvite(true); document.getElementById('rejectInvite').onclick = () => respondInvite(false);
