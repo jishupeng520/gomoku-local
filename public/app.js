@@ -5,7 +5,7 @@ const gameState = {
   board: Array.from({ length: 15 }, () => Array(15).fill(null)),
   turn: 'black', winner: null, lastMove: null, localColor: 'spectator',
   clientId: '', nickname: localStorage.getItem('gomokuNickname') || '小太阳',
-  roomId: '', socket: null, zoom: 1, soundEnabled: true, pendingInvite: null,
+  roomId: '', socket: null, zoom: 1, baseBoardSize: 0, soundEnabled: true, pendingInvite: null,
 };
 const boardElement = document.getElementById('board');
 const statusElement = document.getElementById('gameStatus');
@@ -110,19 +110,19 @@ async function copyRoomLink() { try { await navigator.clipboard.writeText(docume
 /** 请求服务端重开一局。 */
 function resetGame() { sendMessage({ type: 'restart' }); }
 /**
- * 应用棋盘缩放并保持当前视口中心，避免放大后遮住下方控制区。
+ * 应用整张棋盘的缩放尺寸；棋盘视口同步变大，始终展示完整棋盘。
  * @param {number} nextZoom 目标缩放比例，范围 75% 至 150%。
  * @param {boolean} keepCenter 是否保持用户当前看到的棋盘位置。
  */
-function setZoom(nextZoom, keepCenter = true) {
+function setZoom(nextZoom) {
   const viewport = document.getElementById('boardViewport'); const boardWrap = document.getElementById('boardWrap');
   if (!viewport || !boardWrap) return;
-  const oldSize = boardWrap.getBoundingClientRect().width || viewport.clientWidth; const ratioX = (viewport.scrollLeft + viewport.clientWidth / 2) / oldSize; const ratioY = (viewport.scrollTop + viewport.clientHeight / 2) / oldSize;
   gameState.zoom = Math.min(1.5, Math.max(.75, nextZoom));
-  const baseSize = viewport.clientWidth; const nextSize = Math.max(1, Math.round(baseSize * gameState.zoom));
+  const baseSize = gameState.baseBoardSize || viewport.clientWidth; const nextSize = Math.max(1, Math.round(baseSize * gameState.zoom));
+  document.querySelector('.game-layout')?.style.setProperty('--board-stage-width', `${nextSize}px`);
+  viewport.style.width = `${nextSize}px`; viewport.style.height = `${nextSize}px`;
   boardWrap.style.width = `${nextSize}px`; boardWrap.style.height = `${nextSize}px`;
   document.getElementById('zoomValue').textContent = `${Math.round(gameState.zoom * 100)}%`;
-  if (keepCenter) { viewport.scrollLeft = Math.max(0, ratioX * nextSize - viewport.clientWidth / 2); viewport.scrollTop = Math.max(0, ratioY * nextSize - viewport.clientHeight / 2); }
 }
 
 /** 调整棋盘缩放比例，供备用按钮调用。 */
@@ -135,8 +135,9 @@ function bindZoomGestures() {
   viewport.addEventListener('gesturestart', (event) => { event.preventDefault(); gestureStartZoom = gameState.zoom; }, { passive: false });
   viewport.addEventListener('gesturechange', (event) => { event.preventDefault(); setZoom(gestureStartZoom * event.scale); }, { passive: false });
   viewport.addEventListener('gestureend', (event) => event.preventDefault(), { passive: false });
-  window.addEventListener('resize', () => setZoom(gameState.zoom, false));
-  setZoom(1, false);
+  gameState.baseBoardSize = viewport.getBoundingClientRect().width;
+  window.addEventListener('resize', () => { viewport.style.width = ''; viewport.style.height = ''; gameState.baseBoardSize = viewport.getBoundingClientRect().width; setZoom(gameState.zoom); });
+  setZoom(1);
 }
 /** 显示短暂的页面提示。 */
 function showToast(message) { toastElement.textContent = message; toastElement.classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toastElement.classList.remove('show'), 2200); }
